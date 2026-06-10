@@ -1,0 +1,10 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+httpx==0.28.1
+
+# Optional: auto-load a local .env file (recommended for students).
+python-dotenv==1.0.1
+
+# Optional, for Version 3 (reading a file geodatabase). Pulls GDAL's
+# OpenFileGDB driver. Not needed for core v1/v2 functionality.
+# pyogrio==0.10.0

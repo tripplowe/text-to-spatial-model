@@ -1,0 +1,35 @@
+# Secrets — NEVER commit API keys or .env
+.env
+*.env
+!.env.example
+
+# Query logs (may contain user input; regenerated at runtime)
+logs/*
+!logs/.gitkeep
+*.jsonl
+
+# File geodatabases and other local data (large, not source)
+geodata/
+*.gdb/
+*.gdb
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Build artifacts
+*.log
+dist/
+build/

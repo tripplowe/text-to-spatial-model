@@ -1,0 +1,54 @@
+# docker-compose.yml — portable setup for running text-to-model locally.
+#
+# This brings up TWO containers: the app and a local Ollama. It reads settings
+# from your .env file (copy .env.example -> .env first).
+#
+#   docker compose up -d --build
+#   docker exec -it ttm-ollama ollama pull qwen3:30b-a3b-instruct-2507-q4_K_M
+#   open http://localhost:8080
+#
+# GPU NOTE: by default this runs Ollama on CPU, which works but is slow for big
+# models. If you have an NVIDIA GPU and the NVIDIA Container Toolkit installed,
+# uncomment the "gpus" block under the ollama service.
+#
+# HOSTED-API NOTE: if you'd rather use a hosted API (LLM_BACKEND=openai with your
+# own API_KEY), you don't need the ollama container at all — you can run just the
+# app with: docker compose up -d --build app   (the app reads OPENAI_* from .env)
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ttm-ollama
+    networks: [ttm-net]
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+    # ---- Uncomment to use an NVIDIA GPU (requires NVIDIA Container Toolkit) ----
+    # gpus:
+    #   - driver: nvidia
+    #     device_ids: ["0"]
+    #     capabilities: [gpu]
+
+  app:
+    build: .
+    container_name: ttm-app
+    networks: [ttm-net]
+    depends_on:
+      - ollama
+    env_file:
+      - .env
+    environment:
+      # Inside Docker, reach the ollama container by service name (overrides .env)
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - ./logs:/app/logs
+    ports:
+      - "127.0.0.1:8080:8080"   # local only; no authentication is built in
+    restart: unless-stopped
+
+networks:
+  ttm-net:
+    driver: bridge
+
+volumes:
+  ollama-models:

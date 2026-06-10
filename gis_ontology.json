@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "course": "Introductory GIS Applications in Natural Resources",
+    "platform": "ArcGIS Pro",
+    "version": "2.0",
+    "phase": "Phase 1 — Vector overlay analysis only",
+    "host": "IRENE (dual RTX A4500, single-GPU inference)",
+    "description": "GIS tool ontology for text-to-spatial-model generation, scoped to VECTOR OVERLAY ANALYSIS ONLY. Raster and terrain tools have been intentionally removed for this phase. Defines available geoprocessing tools, their input/output data types, parameters, and the natural language keywords that trigger each tool.",
+    "scope_note": "This version contains ONLY vector tools. There are NO raster, terrain, or raster-vector conversion tools in this ontology. All land cover data in this course is vector-polygon. Containment ('within') is always handled by Clip or Intersect, never Extract by Mask."
+  },
+
+  "data_types": {
+    "vector-point": {
+      "description": "Point feature class",
+      "geometry": "point",
+      "domain": "vector",
+      "examples": ["sample sites", "well locations", "GPS waypoints", "fire towers", "weather stations"]
+    },
+    "vector-line": {
+      "description": "Polyline feature class",
+      "geometry": "line",
+      "domain": "vector",
+      "examples": ["streams", "rivers", "roads", "trails", "pipelines", "power lines"]
+    },
+    "vector-polygon": {
+      "description": "Polygon feature class",
+      "geometry": "polygon",
+      "domain": "vector",
+      "examples": ["parcels", "property boundary", "wetlands", "soils", "counties", "watersheds", "habitat patches", "timber stands", "land cover", "land use"]
+    },
+    "table": {
+      "description": "Tabular data without geometry",
+      "geometry": "none",
+      "domain": "tabular",
+      "examples": ["attribute table", "statistics summary", "area calculations", "acreage by category"]
+    }
+  },
+
+  "keyword_vocabulary": {
+    "spatial_relationships": {
+      "containment": {
+        "keywords": ["within", "inside", "contained by", "interior to", "enclosed by", "falls within", "lies within", "on the property", "on our land"],
+        "implies_tools": ["Clip", "Intersect", "Select Layer By Location"],
+        "description": "One feature set is spatially inside another. In this vector-only course, containment is handled by Clip (geometry only) or Intersect (preserves attributes from both inputs). The containing feature (the 'cookie cutter') is the clip feature; the contained feature is the input. Determining WHICH dataset is the clipper vs. the clipped is the key parsing decision — see the clip_direction note below."
+      },
+      "proximity": {
+        "keywords": ["near", "close to", "adjacent to", "within distance of", "proximity", "surrounding", "around", "nearby", "neighborhood"],
+        "implies_tools": ["Buffer", "Select Layer By Location"],
+        "description": "Features are within some distance of other features. Typically implemented as Buffer (to create the proximity zone) followed by Clip or Intersect. If no explicit distance is given, flag as AMBIGUOUS."
+      },
+      "overlap": {
+        "keywords": ["overlapping", "intersecting", "shared area", "common area", "where they overlap"],
+        "implies_tools": ["Intersect", "Union"],
+        "description": "Two feature sets share spatial extent."
+      },
+      "exclusion": {
+        "keywords": ["outside", "excluding", "not within", "beyond", "remove", "erase", "subtract", "except", "away from"],
+        "implies_tools": ["Erase", "Select Layer By Location (INVERT)"],
+        "description": "Features or areas to be excluded from the analysis."
+      },
+      "clip_direction": {
+        "description": "CRITICAL PARSING RULE. Clip has two roles: the INPUT (the layer being trimmed) and the CLIP FEATURE (the boundary doing the trimming, i.e., the cookie cutter). Which dataset plays which role depends on prepositions in the request.",
+        "guidance": [
+          "'How many acres are ON THE PROPERTY within 200 ft of a stream' → the PROPERTY is the boundary (clip feature); the stream buffer is the INPUT being clipped. Result: buffer trimmed to property.",
+          "'How many acres of LAND COVER within 200 ft of a stream' → the STREAM BUFFER is the boundary (clip feature); the LAND COVER is the INPUT being clipped. Result: land cover trimmed to the buffer.",
+          "The preposition 'on' (on the property) usually marks the constraining boundary. The thing being measured/counted is usually the INPUT being clipped."
+        ]
+      }
+    },
+
+    "aggregation_operations": {
+      "summarize": {
+        "keywords": ["total", "sum", "count", "average", "mean", "maximum", "minimum", "statistics", "summarize", "how much", "how many", "each", "of each", "per", "by type", "by category", "for each", "broken down by"],
+        "implies_tools": ["Summary Statistics", "Calculate Geometry Attributes"],
+        "description": "Compute aggregate statistics on features. The word 'each' (as in 'acres of EACH land cover type') is a strong signal for a group-by summarization: it requires Summary Statistics with a case/group-by field, producing one row per category rather than a single total. 'How many acres' alone (no 'each') is typically a single Calculate Geometry Attributes + total."
+      },
+      "dissolve": {
+        "keywords": ["combine by", "merge by", "group by", "aggregate by category", "dissolve"],
+        "implies_tools": ["Dissolve"],
+        "description": "Merge features sharing a common attribute value into single features."
+      }
+    },
+
+    "field_operations": {
+      "geometry_calculation": {
+        "keywords": ["how many acres", "acres", "area", "total area", "square feet", "square meters", "hectares", "length of", "perimeter", "update geometry", "recalculate area", "calculate geometry", "coordinates", "UTM coordinates", "UTM", "easting", "northing", "XY location", "X and Y", "lat/long", "long/lat", "latitude", "longitude", "projected coordinates", "unprojected coordinates", "geographic coordinates"],
+        "implies_tools": ["Calculate Geometry Attributes"],
+        "description": "Calculate geometric properties and write them to an attribute field. Applies to ALL feature types: AREA/PERIMETER for polygons, LENGTH for lines, and POINT_X/POINT_Y COORDINATES for points. IMPORTANT COURSE ALIAS: this course refers to this operation as 'Update Geometry'; that phrase maps to the Calculate Geometry Attributes tool. After any Clip that changes feature extents, area must be recalculated ('updated') because Clip does not auto-update area fields. COORDINATE DEFAULT: unless the request says otherwise, coordinates are projected UTM easting/northing in meters (fields my_X / my_Y). Geographic is used only when the request says 'long/lat', 'unprojected', or 'geographic' (fields my_lon = POINT_X = longitude, my_lat = POINT_Y = latitude). Extracting coordinates for points is a PER-FEATURE calculation and does NOT imply Summary Statistics aggregation; 'each point' simply means write the coordinate to every feature."
+      }
+    },
+
+    "threshold_conditions": {
+      "equal_to": {
+        "keywords": ["equal to", "classified as", "categorized as", "of type", "where type is"],
+        "implies_tools": ["Select Layer By Attribute"],
+        "description": "Values matching a specific category or value — handled with an attribute query."
+      },
+      "comparison": {
+        "keywords": ["greater than", "more than", "above", "less than", "below", "under", "between", "ranging from"],
+        "implies_tools": ["Select Layer By Attribute"],
+        "description": "Attribute-value comparisons on vector features, handled with a SQL where_clause in Select by Attribute. (Raster threshold/Reclassify operations are out of scope for this phase.)"
+      }
+    },
+
+    "data_nouns": {
+      "hydrography": {
+        "keywords": ["stream", "river", "creek", "brook", "water body", "lake", "pond", "reservoir", "wetland", "swamp", "marsh", "riparian"],
+        "typical_type": "vector-line or vector-polygon",
+        "domain": "hydrology"
+      },
+      "land_cover": {
+        "keywords": ["land cover", "land use", "cover type", "land cover type", "forest", "forested", "woodland", "grassland", "agriculture", "urban", "developed", "barren", "vegetation"],
+        "typical_type": "vector-polygon",
+        "domain": "land cover",
+        "note": "In THIS course, land cover is a VECTOR POLYGON feature class, NOT a raster. Containment operations on land cover use Clip, not Extract by Mask. Cover type is an attribute field used for group-by summarization (Summary Statistics)."
+      },
+      "soils": {
+        "keywords": ["soil", "soils", "erodible", "erodibility", "hydric", "soil type", "SSURGO", "drainage class"],
+        "typical_type": "vector-polygon",
+        "domain": "soils"
+      },
+      "infrastructure": {
+        "keywords": ["road", "highway", "trail", "path", "building", "structure", "pipeline", "power line", "transmission line"],
+        "typical_type": "vector-line or vector-point",
+        "domain": "infrastructure"
+      },
+      "administrative": {
+        "keywords": ["parcel", "property", "property boundary", "boundary", "county", "state", "district", "zone", "jurisdiction", "ownership", "the property"],
+        "typical_type": "vector-polygon",
+        "domain": "administrative",
+        "note": "'The property' or 'property boundary' is frequently the CLIP FEATURE (the constraining boundary) rather than the layer being measured."
+      },
+      "wildlife": {
+        "keywords": ["habitat", "species", "wildlife", "nesting", "den", "migration", "corridor", "range", "territory"],
+        "typical_type": "vector-polygon",
+        "domain": "ecology"
+      }
+    }
+  },
+
+  "tools": [
+    {
+      "name": "Buffer",
+      "category": "proximity",
+      "arcgis_toolbox": "Analysis Tools > Proximity",
+      "arcpy": "arcpy.analysis.Buffer(in_features, out_feature_class, buffer_distance, {line_side}, {line_end_type}, {dissolve_option})",
+      "description": "Creates buffer polygons around input features at a specified distance.",
+      "inputs": [{"name": "in_features", "types": ["vector-point", "vector-line", "vector-polygon"]}],
+      "outputs": [{"name": "out_feature_class", "type": "vector-polygon"}],
+      "required_params": [
+        {"name": "distance", "type": "linear_distance", "description": "Buffer distance value"},
+        {"name": "unit", "type": "enum", "options": ["Feet", "Meters", "Kilometers", "Miles"], "description": "Distance unit"}
+      ],
+      "optional_params": [
+        {"name": "dissolve_option", "type": "enum", "options": ["NONE", "ALL", "LIST"], "default": "NONE"}
+      ],
+      "notes": "If the user says 'near' or 'within X distance' without specifying an exact distance, flag as AMBIGUOUS and suggest the user define the distance."
+    },
+    {
+      "name": "Clip",
+      "category": "overlay",
+      "arcgis_toolbox": "Analysis Tools > Extract",
+      "arcpy": "arcpy.analysis.Clip(in_features, clip_features, out_feature_class)",
+      "description": "Extracts input features that fall within the clip extent. Vector-only operation. The in_features are trimmed to the boundary of the clip_features.",
+      "inputs": [
+        {"name": "in_features", "types": ["vector-point", "vector-line", "vector-polygon"], "role": "features to be clipped (trimmed)"},
+        {"name": "clip_features", "types": ["vector-polygon"], "role": "clip extent boundary (the cookie cutter)"}
+      ],
+      "outputs": [{"name": "out_feature_class", "type": "same as in_features"}],
+      "required_params": [],
+      "notes": "PRIMARY containment tool for this course. The direction matters: identify which dataset is the boundary (clip_features) and which is being trimmed (in_features). See keyword_vocabulary.spatial_relationships.clip_direction. Clip does NOT preserve attributes from the clip feature and does NOT update area fields — recalculate area with Calculate Geometry Attributes ('Update Geometry') afterward."
+    },
+    {
+      "name": "Intersect",
+      "category": "overlay",
+      "arcgis_toolbox": "Analysis Tools > Overlay",
+      "arcpy": "arcpy.analysis.Intersect(in_features, out_feature_class, {join_attributes})",
+      "description": "Computes the geometric intersection of input features. Output retains attributes from all inputs.",
+      "inputs": [{"name": "in_features", "types": ["vector-point", "vector-line", "vector-polygon"], "note": "Two or more feature classes"}],
+      "outputs": [{"name": "out_feature_class", "type": "vector-polygon (typically)"}],
+      "required_params": [],
+      "notes": "Use instead of Clip when you need attributes from BOTH datasets in the result (e.g., to summarize land cover acreage by cover type within a zone, since Intersect keeps both the cover-type field and the zone)."
+    },
+    {
+      "name": "Erase",
+      "category": "overlay",
+      "arcgis_toolbox": "Analysis Tools > Overlay",
+      "arcpy": "arcpy.analysis.Erase(in_features, erase_features, out_feature_class)",
+      "description": "Creates a feature class by overlaying the input features with the erase features, removing the overlapping portions.",
+      "inputs": [
+        {"name": "in_features", "types": ["vector-point", "vector-line", "vector-polygon"]},
+        {"name": "erase_features", "types": ["vector-polygon"]}
+      ],
+      "outputs": [{"name": "out_feature_class", "type": "same as in_features"}],
+      "required_params": [],
+      "notes": "Triggered by exclusion keywords: 'outside', 'excluding', 'remove', 'subtract', 'away from'."
+    },
+    {
+      "name": "Union",
+      "category": "overlay",
+      "arcgis_toolbox": "Analysis Tools > Overlay",
+      "arcpy": "arcpy.analysis.Union(in_features, out_feature_class)",
+      "description": "Computes the geometric union of all input polygon features. All areas from all inputs are preserved.",
+      "inputs": [{"name": "in_features", "types": ["vector-polygon"], "note": "Two or more polygon feature classes"}],
+      "outputs": [{"name": "out_feature_class", "type": "vector-polygon"}],
+      "required_params": [],
+      "notes": "Use when you need the combined extent of multiple polygon datasets with all attributes preserved."
+    },
+    {
+      "name": "Dissolve",
+      "category": "generalization",
+      "arcgis_toolbox": "Data Management Tools > Generalization",
+      "arcpy": "arcpy.management.Dissolve(in_features, out_feature_class, {dissolve_field}, {statistics_fields})",
+      "description": "Aggregates features based on shared attribute values.",
+      "inputs": [{"name": "in_features", "types": ["vector-point", "vector-line", "vector-polygon"]}],
+      "outputs": [{"name": "out_feature_class", "type": "same as in_features"}],
+      "required_params": [
+        {"name": "dissolve_field", "type": "field_name", "description": "Attribute field to dissolve on"}
+      ],
+      "notes": "Triggered by 'group by', 'combine by type', 'aggregate by category'. Note: Dissolve merges GEOMETRY by category; Summary Statistics produces a STATISTICS TABLE by category. Use Summary Statistics when the request asks 'how many acres of each type' (a table of numbers); use Dissolve when the request asks to merge polygons into one feature per category."
+    },
+    {
+      "name": "Select Layer By Attribute",
+      "category": "selection",
+      "arcgis_toolbox": "Data Management Tools > Layers and Table Views (geoprocessing tool, used in ModelBuilder/scripts)",
+      "arcpy": "arcpy.management.SelectLayerByAttribute(in_layer, {selection_type}, {where_clause})",
+      "description": "Selects features based on an attribute query expression.",
+      "inputs": [{"name": "in_layer", "types": ["vector-point", "vector-line", "vector-polygon"]}],
+      "outputs": [{"name": "selected_features", "type": "same as input (selection applied)"}],
+      "required_params": [
+        {"name": "where_clause", "type": "SQL_expression", "description": "Attribute query defining which features to select"}
+      ],
+      "notes": "Triggered by attribute-based criteria: 'where type is', 'classified as', attribute comparisons. Often followed by Copy Features or used as input to subsequent tools. NAMING: the tool's canonical name is 'Select Layer By Attribute' (arcpy.management.SelectLayerByAttribute). Students often say 'Select by Attribute' — that is the INTERACTIVE map/table selection, which is the same outcome but is NOT a geoprocessing tool. In a built workflow/model, always use the TOOL form 'Select Layer By Attribute', which produces a selectable output that can be chained into later tools."
+    },
+    {
+      "name": "Select Layer By Location",
+      "category": "selection",
+      "arcgis_toolbox": "Data Management Tools > Layers and Table Views (geoprocessing tool, used in ModelBuilder/scripts)",
+      "arcpy": "arcpy.management.SelectLayerByLocation(in_layer, {overlap_type}, {select_features}, {search_distance})",
+      "description": "Selects features based on spatial relationship to other features.",
+      "inputs": [
+        {"name": "in_layer", "types": ["vector-point", "vector-line", "vector-polygon"]},
+        {"name": "select_features", "types": ["vector-point", "vector-line", "vector-polygon"]}
+      ],
+      "outputs": [{"name": "selected_features", "type": "same as in_layer (selection applied)"}],
+      "required_params": [
+        {"name": "overlap_type", "type": "enum", "options": ["INTERSECT", "WITHIN", "CONTAINS", "WITHIN_A_DISTANCE"]}
+      ],
+      "notes": "Alternative to Buffer + Clip for proximity queries. Use WITHIN_A_DISTANCE when a buffer distance is implied. Select Layer By Location selects whole features; Clip trims features at the boundary. Choose based on whether the request wants whole features that touch the zone, or only the portions inside it. NAMING: the tool's canonical name is 'Select Layer By Location' (arcpy.management.SelectLayerByLocation). 'Select by Location' is the INTERACTIVE selection (same outcome, not a tool); in a workflow always use the tool form."
+    },
+    {
+      "name": "Summary Statistics",
+      "category": "aggregation",
+      "arcgis_toolbox": "Analysis Tools > Statistics",
+      "arcpy": "arcpy.analysis.Statistics(in_table, out_table, statistics_fields, {case_field})",
+      "description": "Calculates summary statistics (SUM, MEAN, COUNT, MIN, MAX, etc.) for fields in a table, optionally grouped by a case (group-by) field.",
+      "inputs": [{"name": "in_table", "types": ["vector-point", "vector-line", "vector-polygon", "table"]}],
+      "outputs": [{"name": "out_table", "type": "table"}],
+      "required_params": [
+        {"name": "statistics_fields", "type": "field_statistic_list", "description": "Field(s) and statistic type, e.g., Acres SUM"},
+        {"name": "case_field", "type": "field_name", "description": "Group-by field — produces one output row per unique value (REQUIRED when the request says 'each' or 'per category')"}
+      ],
+      "notes": "TRIGGERED BY 'EACH'. 'How many acres of EACH land cover type' = SUM of Acres with case_field = cover type, producing a table of acreage per category. Without a case_field this produces a single grand total. The presence of 'each', 'per', 'by type', or 'for each category' is the signal that a case_field is required."
+    },
+    {
+      "name": "Calculate Geometry Attributes",
+      "category": "field_calculation",
+      "arcgis_toolbox": "Data Management Tools > Features",
+      "arcpy": "arcpy.management.CalculateGeometryAttributes(in_features, geometry_property, {length_unit}, {area_unit})",
+      "description": "Calculates geometric properties (area, length, perimeter, coordinates) and adds/updates them as attributes.",
+      "inputs": [{"name": "in_features", "types": ["vector-point", "vector-line", "vector-polygon"]}],
+      "outputs": [{"name": "updated_features", "type": "same as input (field added/updated)"}],
+      "required_params": [
+        {"name": "geometry_property", "type": "field_and_property", "description": "Field(s) to populate and property to compute. Polygons: 'my_acres AREA'. Lines: 'my_miles LENGTH'. Points: 'my_X POINT_X' and 'my_Y POINT_Y' (projected) or 'my_lon POINT_X' and 'my_lat POINT_Y' (geographic)."}
+      ],
+      "optional_params": [
+        {"name": "area_unit", "type": "enum", "options": ["ACRES", "SQUARE_FEET", "SQUARE_METERS", "HECTARES"], "description": "Unit for area (polygons). Default native unit is SQUARE_METERS (UTM)."},
+        {"name": "length_unit", "type": "enum", "options": ["MILES", "FEET", "METERS", "KILOMETERS"], "description": "Unit for length (lines). Default native unit is METERS (UTM)."},
+        {"name": "coordinate_system", "type": "CRS", "description": "Output coordinate system for POINT_X/POINT_Y. Projected UTM (meters) by default; a geographic CRS when long/lat requested."}
+      ],
+      "notes": "COURSE ALIAS: This tool is called 'Update Geometry' in this course; that phrase maps here. Works on ALL geometry types: AREA/PERIMETER (polygon), LENGTH (line), POINT_X/POINT_Y (point). Triggered by 'how many acres', 'total area', 'recalculate area', 'length of', 'perimeter', and coordinate phrasings ('UTM coordinates', 'easting/northing', 'lat/long', 'XY location'). Must run AFTER a Clip that changes feature extents (Clip does not update existing area fields). Often followed by Summary Statistics for area/length totals or per-category sums — but NOT for point coordinates, which are per-feature values, not aggregates. Field/unit conventions: student names the output field (my_acres, my_hecta, my_miles, my_feet, my_X/my_Y, my_lon/my_lat). Default coordinate space is projected UTM in meters unless the request states otherwise."
+    }
+  ],
+
+  "workflow_patterns": [
+    {
+      "name": "acres_within_buffer_on_property",
+      "trigger": "How many acres do we have on the property within N feet of a stream?",
+      "steps": [
+        "Buffer the stream by N feet (dissolve ALL) → Stream Buffer (vector-polygon)",
+        "Clip the Stream Buffer BY the Property Boundary (property = clip feature) → Buffer On Property",
+        "Calculate Geometry Attributes / Update Geometry (Acres, AREA) on the clipped result",
+        "Output: single total acreage"
+      ],
+      "key_decision": "Property boundary is the CLIP FEATURE; the stream buffer is the layer being clipped. No 'each' → no Summary Statistics; a single total is returned."
+    },
+    {
+      "name": "acres_of_each_cover_type_within_buffer",
+      "trigger": "How many acres of each land cover type do we have within N feet of a stream?",
+      "steps": [
+        "Buffer the stream by N feet (dissolve ALL) → Stream Buffer (vector-polygon)",
+        "Clip the Land Cover BY the Stream Buffer (buffer = clip feature) → Land Cover In Buffer",
+        "Calculate Geometry Attributes / Update Geometry (Acres, AREA) on the clipped land cover",
+        "Summary Statistics: SUM of Acres with case_field = cover type → acreage per category",
+        "Output: table of acres per land cover type"
+      ],
+      "key_decision": "CLIP DIRECTION IS REVERSED from the property example: land cover is the layer being clipped; the buffer is the clip feature. The word 'each' adds the Summary Statistics group-by step."
+    }
+  ],
+
+  "ambiguity_flags": [
+    {
+      "condition": "Proximity keyword ('near', 'close to') without explicit distance",
+      "flag": "AMBIGUOUS: Distance not specified. Ask: What distance defines 'near' in this context?",
+      "example": "'forests near streams' — How far is 'near'? 50 feet? 200 feet? 1000 feet?"
+    },
+    {
+      "condition": "Threshold without units",
+      "flag": "AMBIGUOUS: Units not specified for threshold value.",
+      "example": "'parcels larger than 5' — 5 acres? 5 hectares?"
+    },
+    {
+      "condition": "Containment without a clear constraining boundary",
+      "flag": "DECISION POINT: Clip direction unclear — which dataset is the boundary (clip feature) and which is being trimmed?",
+      "example": "'land within the buffer of the property' — is the property the boundary, or the buffer, or both in sequence?"
+    },
+    {
+      "condition": "Clip vs. Intersect choice",
+      "flag": "DECISION POINT: Use Clip (geometry only) if you only need the trimmed shapes; use Intersect if you need attributes from BOTH datasets (e.g., to summarize by a category field from one layer).",
+      "example": "'acres of each cover type within the buffer' — Intersect preserves the cover-type field needed for the per-category summary"
+    }
+  ]
+}
