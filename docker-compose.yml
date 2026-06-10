@@ -40,10 +40,11 @@ services:
     environment:
       # Inside Docker, reach the ollama container by service name (overrides .env)
       - OLLAMA_HOST=http://ollama:11434
+      - BIND_HOST=0.0.0.0
     volumes:
       - ./logs:/app/logs
     ports:
-      - "127.0.0.1:8080:8080"   # local only; no authentication is built in
+      - "127.0.0.1:8080:8080" # local only; no authentication is built in
     restart: unless-stopped
 
 networks:
